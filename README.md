@@ -1,4 +1,4 @@
-# Offline Data Persistence Android App
+# Offline Cloud data persistence android app
 
 This project demonstrates how to build an Android application with offline data persistence capabilities, similar to Google Keep and WhatsApp. The application utilizes a real-time database that ensures data is persistently stored locally even when the app is offline or restarted.
 
