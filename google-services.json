@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "755232040370",
+    "firebase_url": "https://offline-sync-app-default-rtdb.firebaseio.com",
+    "project_id": "offline-sync-app",
+    "storage_bucket": "offline-sync-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:755232040370:android:3b3d9414ad6975cd0f30ab",
+        "android_client_info": {
+          "package_name": "com.bornmaja.offlinedatasyncapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaanifwv5Eplz8-pPEQMATRcGJjYd-e5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

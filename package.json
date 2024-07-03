@@ -1,6 +1,6 @@
 {
   "name": "offline-data-sync-app",
-  "main": "expo-router/entry",
+  "main": "./src/App.js",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
@@ -16,13 +16,16 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.3.1",
     "@react-native-firebase/app": "^20.1.0",
+    "@react-native-firebase/database": "^20.1.0",
     "@react-native-masked-view/masked-view": "0.3.1",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/stack": "^6.3.29",
     "expo": "~51.0.17",
     "expo-constants": "~16.0.2",
+    "expo-dev-client": "~4.0.19",
     "expo-font": "~12.0.7",
     "expo-linking": "~6.3.1",
     "expo-router": "~3.5.17",
