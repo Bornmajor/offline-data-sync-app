@@ -23,13 +23,13 @@ export const MyContextProvider = (props) => {
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCrvB8ekHqTnLulCotzgrvLLRglgJhxy3M",
+  apiKey: "",
   authDomain: "offline-sync-app.firebaseapp.com",
   databaseURL: "https://offline-sync-app-default-rtdb.firebaseio.com",
   projectId: "offline-sync-app",
-  storageBucket: "offline-sync-app.appspot.com",
-  messagingSenderId: "755232040370",
-  appId: "1:755232040370:web:2d67c686373231e00f30ab"
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
 };
 
 if (!firebase.apps.length) {
