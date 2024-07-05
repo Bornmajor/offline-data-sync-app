@@ -76,6 +76,8 @@ In the output, you'll find options to open the app in a
 You can start developing by editing the files inside the **src/** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
 ## App shots (Android Emulator os android version 10)
+![offline-sync-figma-preview](https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/0d1e1a65-d3e2-4659-a409-47dfea793395)
+
 ### Splash & Auth screen
 <img width="327" alt="studio64_CuuGwCYE0t" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/5deb50dc-e69c-48d1-b1c7-7acfb722a8a8">
 <img width="327" alt="studio64_MddeKBOdCM" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/e449e953-23b6-4f30-9756-960ce3040e57">
