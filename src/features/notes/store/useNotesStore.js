@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { Alert, ToastAndroid } from 'react-native';
+import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import createAuthRemoteDataSource from '../../auth/data/datasources/authRemoteDataSource';
@@ -15,6 +15,7 @@ import createAddNoteUseCase from '../domain/usecases/addNoteUseCase';
 import createDeleteNoteUseCase from '../domain/usecases/deleteNoteUseCase';
 import createObserveNotesByEmailUseCase from '../domain/usecases/observeNotesByEmailUseCase';
 import createUpdateNoteUseCase from '../domain/usecases/updateNoteUseCase';
+import { showAppFeedback } from '../../../shared/feedback/feedbackAdapter';
 import logger from '../../../shared/utils/logger';
 
 const STORAGE_KEY = 'notes-storage';
@@ -59,9 +60,7 @@ const useNotesStore = create(
       setHasInternet: (hasInternet) => set({ hasInternet }),
       setNotes: (notes) => set({ notes }),
       resetSession: () => set({ isLogin: false, usrMail: '', notes: [] }),
-      showFeedback: (msg) => {
-        ToastAndroid.showWithGravity(msg, ToastAndroid.LONG, ToastAndroid.BOTTOM);
-      },
+      showFeedback: (msg) => showAppFeedback(msg),
       syncAuthSession: () => {
         const currentEmail = getCurrentUserEmail();
 

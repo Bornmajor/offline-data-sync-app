@@ -33,8 +33,7 @@ That means:
 - Expo / React Native
 - React Navigation
 - Firebase Realtime Database
-- `@react-native-firebase/app`
-- `@react-native-firebase/database`
+- Firebase JS SDK (`firebase` package)
 - Zustand
 - AsyncStorage
 - NetInfo
@@ -74,13 +73,20 @@ src/
 
 ## Firebase Setup
 
-This app uses the native Android Firebase config, not a manual `firebase.initializeApp(...)` block in JavaScript.
+This project currently initializes Firebase through the JavaScript SDK in [src/shared/firebase/firebaseClient.js](src/shared/firebase/firebaseClient.js).
 
-- [app.json](app.json) points Android to [google-services.json](google-services.json).
-- [google-services.json](google-services.json) contains the Firebase project details and API key.
-- The app reads that native config at build/runtime through React Native Firebase.
+- [app.json](app.json) points Android to [google-services.json](google-services.json) for native Android build metadata.
+- The app also parses [google-services.json](google-services.json) in JS to populate `initializeApp(...)` config values (`apiKey`, `appId`, `projectId`, `databaseURL`, and related fields).
+- This keeps one Firebase source of truth for Android and avoids duplicating those values in code.
 
-If you want separate environments, create separate Firebase config files and switch them with Expo config or EAS build profiles.
+If you want separate environments, keep per-environment Firebase config files and switch them via Expo config/EAS build profiles.
+
+### Platform caveats
+
+- Android: the current flow works as-is because [google-services.json](google-services.json) is available and mapped in [app.json](app.json).
+- iOS: this repo does not include a `GoogleService-Info.plist` path/config; add iOS Firebase config and update Expo settings before shipping iOS.
+- Web: [google-services.json](google-services.json) is Android-specific. For web builds, provide Firebase JS config through environment variables or a web-specific config module.
+- Dependency note: `@react-native-firebase/*` packages are installed, but app runtime in this repository uses the Firebase JS SDK path in [src/shared/firebase/firebaseClient.js](src/shared/firebase/firebaseClient.js).
 
 ## Getting Started
 
@@ -90,11 +96,14 @@ If you want separate environments, create separate Firebase config files and swi
 npm install
 ```
 
-If you are setting up the Firebase packages manually, make sure these are installed:
+If you are setting up Firebase manually for this code path, make sure the JS SDK is installed:
 
 ```bash
-npm install @react-native-firebase/app @react-native-firebase/database
+npm install firebase
 ```
+
+Optional: if you later migrate runtime calls to native Firebase modules, then install `@react-native-firebase/app` and `@react-native-firebase/database` as part of that migration.
+
 
 ### 2. Configure Firebase
 
@@ -110,7 +119,7 @@ npm install @react-native-firebase/app @react-native-firebase/database
 npx expo start -c
 ```
 
-Because this app uses native Firebase modules, you should open it with a development build or Android emulator, not Expo Go.
+Because runtime data/auth calls use the Firebase JS SDK, you can run the app in Expo Go for Android flows. If you later switch runtime calls to `@react-native-firebase/*`, use a development build.
 
 ### 4. Build Android
 
@@ -150,6 +159,12 @@ The project includes unit tests for key layers:
 - Repository layer
   - `src/features/auth/data/repositories/__tests__/authRepository.test.js`
   - `src/features/notes/data/repositories/__tests__/notesRepository.test.js`
+- Datasource layer
+  - `src/features/auth/data/datasources/__tests__/authRemoteDataSource.test.js`
+  - `src/features/notes/data/datasources/__tests__/notesRemoteDataSource.test.js`
+- Use case layer
+  - `src/features/auth/domain/usecases/__tests__/authUseCases.test.js`
+  - `src/features/notes/domain/usecases/__tests__/notesUseCases.test.js`
 - Zustand business logic
   - `src/features/notes/store/__tests__/useNotesStore.test.js`
 - Shared widgets/components
@@ -160,6 +175,10 @@ Run only these suites:
 
 ```bash
 npx jest --runInBand \
+  src/features/auth/data/datasources/__tests__/authRemoteDataSource.test.js \
+  src/features/notes/data/datasources/__tests__/notesRemoteDataSource.test.js \
+  src/features/auth/domain/usecases/__tests__/authUseCases.test.js \
+  src/features/notes/domain/usecases/__tests__/notesUseCases.test.js \
   src/features/auth/data/repositories/__tests__/authRepository.test.js \
   src/features/notes/data/repositories/__tests__/notesRepository.test.js \
   src/features/notes/store/__tests__/useNotesStore.test.js \
