@@ -167,6 +167,40 @@ npx jest --runInBand \
   src/shared/components/__tests__/PasswordInput.test.js
 ```
 
+
+## CI/CD (GitHub Actions)
+
+APK release automation is configured with the workflow at [.github/workflows/build-apk.yml](.github/workflows/build-apk.yml).
+
+### What the workflow does
+
+- Installs dependencies
+- Runs tests
+- Builds Android APK with EAS
+- Downloads the APK artifact
+- Publishes the APK to GitHub Releases
+
+### Triggers
+
+- Push to `main` (creates a release with auto tag format `v0.0.0-main-<run_number>`)
+- Tag push matching `v*` (for example: `v1.0.1`)
+- Manual run from Actions (`workflow_dispatch`) with selectable EAS profile
+
+### Required GitHub Secret
+
+Add this repository secret before running the workflow:
+
+- `EXPO_TOKEN`: Expo access token used by EAS CLI in CI
+
+### Publish an APK release
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+After the workflow finishes, the APK is attached to the matching GitHub Release tag.
+
 ## Screens in the App
 
 - Login / registration screen
