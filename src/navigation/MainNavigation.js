@@ -8,6 +8,7 @@ import Register from '../features/auth/screens/Register';
 import Settings from '../features/settings/screens/Settings';
 import Note from '../features/notes/screens/Note';
 import useNotesStore from '../features/notes/store/useNotesStore';
+import GlobalSnackbar from '../shared/feedback/GlobalSnackbar';
 
 const Stack = createStackNavigator();
 
@@ -20,6 +21,7 @@ const MainNavigation = () => {
 
   return (
     <PaperProvider>
+      <GlobalSnackbar />
       <NavigationContainer>
         <Stack.Navigator
           key={isLogin ? 'app' : 'guest'}

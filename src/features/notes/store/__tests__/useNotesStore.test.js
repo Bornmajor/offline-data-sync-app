@@ -2,11 +2,10 @@ jest.mock('react-native', () => ({
   Alert: {
     alert: jest.fn(),
   },
-  ToastAndroid: {
-    showWithGravity: jest.fn(),
-    LONG: 1,
-    BOTTOM: 2,
-  },
+}));
+
+jest.mock('../../../../shared/feedback/feedbackAdapter', () => ({
+  showAppFeedback: jest.fn(),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -46,7 +45,7 @@ jest.mock('../../data/datasources/notesRemoteDataSource', () => ({
   })),
 }));
 
-import { ToastAndroid } from 'react-native';
+import { showAppFeedback } from '../../../../shared/feedback/feedbackAdapter';
 import useNotesStore from '../useNotesStore';
 
 const resetStore = () => {
@@ -71,10 +70,8 @@ describe('useNotesStore business logic', () => {
     const result = await useNotesStore.getState().register('user@test.com', 'weakpass');
 
     expect(result).toBe(false);
-    expect(ToastAndroid.showWithGravity).toHaveBeenCalledWith(
+    expect(showAppFeedback).toHaveBeenCalledWith(
       'Password must be at least 8 characters and include a letter, number, and special character',
-      ToastAndroid.LONG,
-      ToastAndroid.BOTTOM,
     );
   });
 
