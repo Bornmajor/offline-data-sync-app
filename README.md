@@ -182,6 +182,7 @@ APK release automation is configured with the workflow at [.github/workflows/bui
 
 ### Triggers
 
+- Push to `main` (creates a release with auto tag format `v0.0.0-main-<run_number>`)
 - Tag push matching `v*` (for example: `v1.0.1`)
 - Manual run from Actions (`workflow_dispatch`) with selectable EAS profile
 

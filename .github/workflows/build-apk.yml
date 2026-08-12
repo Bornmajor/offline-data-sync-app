@@ -2,6 +2,8 @@ name: Build Android APK Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -40,8 +42,10 @@ jobs:
       - name: Resolve release metadata
         id: release_meta
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "release_tag=v0.0.0-main-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           else
             echo "release_tag=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
           fi
