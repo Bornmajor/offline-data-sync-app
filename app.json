@@ -21,7 +21,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bornmaja.offlinedatasyncapp"
+      "package": "com.bornmaja.offlinedatasyncapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
