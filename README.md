@@ -1,88 +1,205 @@
-# Offline Cloud data persistence android app
+# Offline Data Sync App
 
-This project demonstrates how to build an Android application with offline data persistence capabilities, similar to Google Keep and WhatsApp. The application utilizes a real-time database that ensures data is persistently stored locally even when the app is offline or restarted.
+A React Native / Expo Android app that demonstrates offline-first note syncing with Firebase Realtime Database. The app keeps notes available while offline, then syncs changes when connectivity returns.
 
-## Problem solving
-In modern mobile applications, ensuring data persistence is crucial for a seamless user experience. This project showcases the implementation of an Android app with robust offline persistence features. By maintaining a local copy of data alongside cloud storage, the app guarantees data availability regardless of network conditions.
+## What is already implemented
 
-## Features
-* <b>Offline Data Storage</b>: tore and sync data with our NoSQL cloud database. Data is synced across all clients in realtime, and remains available when your app goes offline.
-* <b>Real-Time Database</b>: Synchronize local data with the cloud when the device goes online..
-* <b>Auto Sync</b>: Automatically updates cloud data with local changes once the connection is restored.
-* <b>User-Friendly Interface</b>: Simple and intuitive UI for managing data entries.
+- Separate email/password login and registration flows.
+- Notes CRUD: create, edit, delete, and browse notes.
+- Offline-aware sync through Firebase Realtime Database.
+- Network status tracking with `@react-native-community/netinfo`.
+- Local UI/session persistence with Zustand + AsyncStorage.
+- Theme and session state persisted across app restarts.
+- Native Firebase configuration for Android through `google-services.json`.
+- Release-safe logging with secret redaction in development.
+- Registration password policy enforced (min 8 chars with letter, number, and special character).
 
-## Technology used 
-1. Firebase Realtime Database(https://firebase.google.com/docs/database) -Store and sync data with our NoSQL cloud database. Data is synced across all clients in realtime, and remains available when your app goes offline. 
-2. React Native Firebase(https://rnfirebase.io/) - firebase SDK 
-3. React Native Async storage (https://react-native-async-storage.github.io/async-storage/docs/install/) - storing auth tokens.
-4. NoSQL database
-5. React Native Paper(https://callstack.github.io/react-native-paper/) - Cross-platform Material Design for React Native
-6. Figma - for prototype design
+## Architecture
+
+The app follows a layered flow:
+
+`DataSource -> Repository -> UseCase -> Zustand -> UI`
+
+That means:
+
+- Firebase access lives in datasource files.
+- Repositories wrap datasource calls.
+- Use cases expose domain actions.
+- Zustand stores app state and orchestrates use cases.
+- Screens and components only talk to the store.
+
+## Tech Stack
+
+- Expo / React Native
+- React Navigation
+- Firebase Realtime Database
+- `@react-native-firebase/app`
+- `@react-native-firebase/database`
+- Zustand
+- AsyncStorage
+- NetInfo
+- React Native Paper
+- Jest + React Test Renderer
+
+## Project Structure
+
+```text
+src/
+  App.js
+  features/
+    auth/
+      data/
+        datasources/
+        repositories/
+      domain/
+        usecases/
+      screens/
+    notes/
+      components/
+      data/
+        datasources/
+        repositories/
+      domain/
+        usecases/
+      screens/
+      store/
+    settings/
+      screens/
+  navigation/
+  shared/
+    components/
+    utils/
+  test/
+```
+
+## Firebase Setup
+
+This app uses the native Android Firebase config, not a manual `firebase.initializeApp(...)` block in JavaScript.
+
+- [app.json](app.json) points Android to [google-services.json](google-services.json).
+- [google-services.json](google-services.json) contains the Firebase project details and API key.
+- The app reads that native config at build/runtime through React Native Firebase.
+
+If you want separate environments, create separate Firebase config files and switch them with Expo config or EAS build profiles.
+
+## Getting Started
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+If you are setting up the Firebase packages manually, make sure these are installed:
+
+```bash
+npm install @react-native-firebase/app @react-native-firebase/database
+```
+
+### 2. Configure Firebase
+
+- Create a Firebase project.
+- Enable Realtime Database.
+- Download the Android `google-services.json` file.
+- Place it at the project root.
+- Keep [app.json](app.json) configured with `android.googleServicesFile`.
+
+### 3. Start the app
+
+```bash
+npx expo start -c
+```
+
+Because this app uses native Firebase modules, you should open it with a development build or Android emulator, not Expo Go.
+
+### 4. Build Android
+
+The existing EAS profiles in [eas.json](eas.json) include:
+
+- `preview3` for a development client build
+- `preview` / `preview4` for internal builds
+- `production` for release builds
+
+Example:
+
+```bash
+eas build --profile preview3 --platform android
+```
 
 
-## Get started
-### Setup
-1. Set Up Firebase Project and Realtime Database
-* Create a Firebase Project: Go to the Firebase Console.Click on "Add Project" and follow the steps to create a new project.
-* Add Realtime Database:Go project overview.Create an app choose web.In your Firebase project, navigate to the "Database" section in the left-hand menu. Click on "Create Database" in the Realtime Database section.Choose the location for your database and set the security rules. For development purposes, you can start in test mode.
-  
-2. Add Firebase SDK to Your React Native Project. Install the Firebase packages: Ensure you have installed the necessary Firebase packages:
-  ```bash
-  npm install @react-native-firebase/app @react-native-firebase/database
-   ```
-3. Initialize Firebase in Your App:
-You need to initialize Firebase in your app’s entry file (usually App.js or index).You can get the config of database from project you created in firebase console
- ```bash
-import firebase from '@react-native-firebase/app';
-import database from '@react-native-firebase/database';
+## Testing
 
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-};
+### Run tests
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+Project script (watch mode):
 
-   ```
-3. Ensure Configuration Files are Correctly Placed:
-For Android: Ensure google-services.json is in the root directory.
+```bash
+npm test
+```
 
-4. Install other dependencies:
-  
-   ```bash
-   npm install @react-native-community/netinfo @react-native-paper @react-navigation/native @react-native-async-storage/async-storage
-   ```
+One-time run (recommended for CI/local verification):
 
-5. Start the app
+```bash
+npx jest --watchAll=false
+```
 
-   ```bash
-    npx expo start
-   ```
+### Targeted test suites
 
-In the output, you'll find options to open the app in a
+The project includes unit tests for key layers:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go)(won't work requires development build to work)
+- Repository layer
+  - `src/features/auth/data/repositories/__tests__/authRepository.test.js`
+  - `src/features/notes/data/repositories/__tests__/notesRepository.test.js`
+- Zustand business logic
+  - `src/features/notes/store/__tests__/useNotesStore.test.js`
+- Shared widgets/components
+  - `src/shared/components/__tests__/Loader.test.js`
+  - `src/shared/components/__tests__/PasswordInput.test.js`
 
-You can start developing by editing the files inside the **src/** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Run only these suites:
 
-## App shots (Android Emulator os android version 10)
+```bash
+npx jest --runInBand \
+  src/features/auth/data/repositories/__tests__/authRepository.test.js \
+  src/features/notes/data/repositories/__tests__/notesRepository.test.js \
+  src/features/notes/store/__tests__/useNotesStore.test.js \
+  src/shared/components/__tests__/Loader.test.js \
+  src/shared/components/__tests__/PasswordInput.test.js
+```
+
+## Screens in the App
+
+- Login / registration screen
+- Notes list screen
+- Note editor screen
+- Settings screen
+
+## Notes
+
+- Firebase console keys should not be hardcoded in UI files.
+- Console logging is disabled in release builds and redacted in development.
+- The main app entry is [src/App.js](src/App.js).
+
+## Learn More
+
+- [Expo docs](https://docs.expo.dev/)
+- [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Firebase Realtime Database](https://firebase.google.com/docs/database)
+- [React Native Firebase](https://rnfirebase.io/)
+- [Zustand](https://zustand-demo.pmnd.rs/)
+- [React Native Paper](https://callstack.github.io/react-native-paper/)
+
+## Screenshots
+
+### Splash & Auth Screen
+
 ![offline-sync-figma-preview](https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/0d1e1a65-d3e2-4659-a409-47dfea793395)
 
-### Splash & Auth screen
 <img width="327" alt="studio64_CuuGwCYE0t" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/5deb50dc-e69c-48d1-b1c7-7acfb722a8a8">
 <img width="327" alt="studio64_MddeKBOdCM" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/e449e953-23b6-4f30-9756-960ce3040e57">
 
-### Home screens
+### Home Screens
+
 <img width="327" alt="studio64_X04qLq6rL3" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/4558a6d6-9b24-4cc3-9cf6-220edefee264">
 <img width="327" alt="studio64_oLfS7GQ0Wz" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/0aa12033-8fb4-4c29-9e50-82a6b256e1f5">
 <img width="327" alt="studio64_NffQClFk1b" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/8730a523-40f4-4c91-bcc3-eadebcebec3e">
@@ -90,19 +207,11 @@ You can start developing by editing the files inside the **src/** directory. Thi
 <img width="327" alt="studio64_xOKTO8tb6q" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/2b75d973-e57f-4bca-ae79-31db511099b7">
 <img width="327" alt="studio64_LzwtyRNs01" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/684c08ec-5f45-4292-90d0-70fa994c9b2f">
 
-#### Online vs offline mode (showcase offline persistence capabilities)
+### Online vs Offline Mode
+
 <img width="327" alt="studio64_oLfS7GQ0Wz" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/0aa12033-8fb4-4c29-9e50-82a6b256e1f5">
 <img width="327" alt="studio64_60sHmSZ7cn" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/19c42747-bc6b-4ffc-8b4e-3c15b3cf93e4">
 
 ### Others
+
 <img width="327" alt="studio64_dXVoQYmPF9" src="https://github.com/Bornmajor/offline-data-sync-app/assets/98744068/27c674f5-e5a2-49f3-b20c-c5a215c3c4e0">
-
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-

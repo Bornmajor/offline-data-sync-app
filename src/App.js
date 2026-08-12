@@ -1,29 +1,35 @@
-import { View, Text } from 'react-native'
-import React, { useEffect } from 'react'
-import {MyContextProvider} from './context/context';
+import React, { useEffect } from 'react';
 import { registerRootComponent } from 'expo';
 import { StatusBar } from 'react-native';
 import MainNavigation from './navigation/MainNavigation';
-import { PaperProvider } from 'react-native-paper';
-import { SplashScreen } from 'expo';
+import useNotesStore from './features/notes/store/useNotesStore';
 
-export default function App() {
- 
-  return (
-    <>
-   <MyContextProvider>
-
-    <StatusBar />
-    <PaperProvider>
-       <MainNavigation />
-    </PaperProvider>
-   
-
-   </MyContextProvider>
-
-    </>
-  
-  )
+if (!__DEV__) {
+  console.log = () => {};
+  console.info = () => {};
+  console.warn = () => {};
+  console.debug = () => {};
+  console.error = () => {};
 }
 
-registerRootComponent(App); // Registering the root component
+/**
+ * App bootstrap component.
+ */
+export default function App() {
+  useEffect(() => {
+    const store = useNotesStore.getState();
+    const unsubscribe = store.startNetworkListener();
+    store.syncAuthSession();
+
+    return unsubscribe;
+  }, []);
+
+  return (
+    <>
+      <StatusBar />
+      <MainNavigation />
+    </>
+  );
+}
+
+registerRootComponent(App);

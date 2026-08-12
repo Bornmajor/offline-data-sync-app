@@ -1,76 +1,53 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import { createStackNavigator } from '@react-navigation/stack'
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
-import Home from '../screens/Home';
-import Login from '../screens/Login';
-import Settings from '../screens/Settings';
-import { useContext } from 'react';
-import MyContext from '../context/context';
 import { PaperProvider } from 'react-native-paper';
-import Note from '../screens/Note';
+import Home from '../features/notes/screens/Home';
+import Login from '../features/auth/screens/Login';
+import Register from '../features/auth/screens/Register';
+import Settings from '../features/settings/screens/Settings';
+import Note from '../features/notes/screens/Note';
+import useNotesStore from '../features/notes/store/useNotesStore';
 
+const Stack = createStackNavigator();
+
+/**
+ * Builds the root navigation tree for logged-in and guest users.
+ */
 const MainNavigation = () => {
-    const Stack = createStackNavigator();
-    const {appTheme,isLogin} = useContext(MyContext);
+  const appTheme = useNotesStore((state) => state.appTheme);
+  const isLogin = useNotesStore((state) => state.isLogin);
 
   return (
     <PaperProvider>
-    <NavigationContainer>
+      <NavigationContainer>
         <Stack.Navigator
-        initialRouteName='login'
-        screenOptions={{
-            headerStyle:{backgroundColor:appTheme,height:70},
-            headerTintColor:'white',
+          key={isLogin ? 'app' : 'guest'}
+          initialRouteName={isLogin ? 'home' : 'login'}
+          screenOptions={{
+            headerStyle: { backgroundColor: appTheme, height: 70 },
+            headerTintColor: 'white',
             headerTitleStyle: {
-              fontSize: 25, // Adjust the font size here
+              fontSize: 25,
             },
-
-        }}>
-       {isLogin ?  (
-        <>
-         <Stack.Screen
-            name='home'
-            component={Home}
-            options={{               
-                title:'Notedly App',  
-            }}
-            
-            />
-               <Stack.Screen
-            name='note'
-            component={Note}
-            options={{
-                title:'Note 1',  
-            }}
-            
-            /> 
-               <Stack.Screen
-            name='settings'
-            component={Settings}
-            options={{
-                title:'Settings',  
-            }}
-            
-            /> 
-        </>
-       ):
-         <Stack.Screen
-            name='login'
-            component={Login}
-            options={{ headerShown: false }} // Hides the header for Details screen
-            
-            />
-        
-
-       }
-            
-
-        
+          }}
+        >
+          {isLogin ? (
+            <>
+              <Stack.Screen name="home" component={Home} options={{ title: 'Notedly App' }} />
+              <Stack.Screen name="note" component={Note} options={{ title: 'Note 1' }} />
+              <Stack.Screen name="settings" component={Settings} options={{ title: 'Settings' }} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="login" component={Login} options={{ headerShown: false }} />
+              <Stack.Screen name="register" component={Register} options={{ title: 'Register' }} />
+            </>
+          )}
         </Stack.Navigator>
-    </NavigationContainer>
+      </NavigationContainer>
     </PaperProvider>
-  )
-}
+  );
+};
 
-export default MainNavigation
+export default MainNavigation;
