@@ -7,7 +7,8 @@ import Login from '../features/auth/screens/Login';
 import Register from '../features/auth/screens/Register';
 import Settings from '../features/settings/screens/Settings';
 import Note from '../features/notes/screens/Note';
-import useNotesStore from '../features/notes/store/useNotesStore';
+import useAuthStore from '../features/auth/store/useAuthStore';
+import useUiStore from '../shared/store/useUiStore';
 import GlobalSnackbar from '../shared/feedback/GlobalSnackbar';
 
 const Stack = createStackNavigator();
@@ -16,8 +17,8 @@ const Stack = createStackNavigator();
  * Builds the root navigation tree for logged-in and guest users.
  */
 const MainNavigation = () => {
-  const appTheme = useNotesStore((state) => state.appTheme);
-  const isLogin = useNotesStore((state) => state.isLogin);
+  const appTheme = useUiStore((state) => state.appTheme);
+  const isLogin = useAuthStore((state) => state.isLogin);
 
   return (
     <PaperProvider>

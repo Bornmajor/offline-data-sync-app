@@ -1,6 +1,6 @@
 import createAddNoteUseCase from '../addNoteUseCase';
 import createDeleteNoteUseCase from '../deleteNoteUseCase';
-import createObserveNotesByEmailUseCase from '../observeNotesByEmailUseCase';
+import createObserveNotesByOwnerUseCase from '../observeNotesByOwnerUseCase';
 import createUpdateNoteUseCase from '../updateNoteUseCase';
 
 describe('notes use cases', () => {
@@ -15,30 +15,32 @@ describe('notes use cases', () => {
     const updateNote = createUpdateNoteUseCase(repository);
     const deleteNote = createDeleteNoteUseCase(repository);
 
-    const payload = { title: 't', description: 'd', email: 'user@test.com' };
+    const payload = { ownerId: 'uid-1', title: 't', description: 'd' };
+    const updatePayload = { ownerId: 'uid-1', id: 'note-1', title: 'new', description: 'new d' };
+    const deletePayload = { ownerId: 'uid-1', id: 'note-1' };
 
     const key = await addNote(payload);
-    await updateNote({ id: 'note-1', title: 'new', description: 'new d' });
-    await deleteNote('note-1');
+    await updateNote(updatePayload);
+    await deleteNote(deletePayload);
 
     expect(repository.addNote).toHaveBeenCalledWith(payload);
-    expect(repository.updateNote).toHaveBeenCalledWith({ id: 'note-1', title: 'new', description: 'new d' });
-    expect(repository.deleteNote).toHaveBeenCalledWith('note-1');
+    expect(repository.updateNote).toHaveBeenCalledWith(updatePayload);
+    expect(repository.deleteNote).toHaveBeenCalledWith(deletePayload);
     expect(key).toBe('note-1');
   });
 
-  it('delegates observeNotesByEmail and returns unsubscribe', () => {
+  it('delegates observeNotesByOwner and returns unsubscribe', () => {
     const unsubscribe = jest.fn();
     const repository = {
-      observeNotesByEmail: jest.fn(() => unsubscribe),
+      observeNotesByOwner: jest.fn(() => unsubscribe),
     };
 
-    const observeNotesByEmail = createObserveNotesByEmailUseCase(repository);
+    const observeNotesByOwner = createObserveNotesByOwnerUseCase(repository);
     const listener = jest.fn();
 
-    const stop = observeNotesByEmail('user@test.com', listener);
+    const stop = observeNotesByOwner('uid-1', listener);
 
-    expect(repository.observeNotesByEmail).toHaveBeenCalledWith('user@test.com', listener);
+    expect(repository.observeNotesByOwner).toHaveBeenCalledWith('uid-1', listener);
     expect(stop).toBe(unsubscribe);
   });
 });

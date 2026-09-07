@@ -65,8 +65,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
-        run: npx jest --watchAll=false
+      - name: Run unit tests with coverage
+        run: npm run test:ci
 
       - name: Setup EAS CLI
         uses: expo/expo-github-action@v8

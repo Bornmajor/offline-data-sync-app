@@ -6,6 +6,14 @@ import {
 import { getFirebaseAuth } from '../../../../shared/firebase/firebaseClient';
 
 /**
+ * @typedef {Object} AuthResult
+ * @property {boolean} ok - Whether the operation succeeded.
+ * @property {string} [uid] - The authenticated user id (Firebase `auth.uid`).
+ * @property {string} [email] - The authenticated user's email.
+ * @property {string} [reason] - Failure reason when `ok` is false.
+ */
+
+/**
  * Creates the auth data source used to sign in, register, and sign out users.
  */
 const createAuthRemoteDataSource = () => ({
@@ -13,7 +21,7 @@ const createAuthRemoteDataSource = () => ({
    * Signs in an existing user.
    * @param {string} email - The user's email address.
    * @param {string} password - The user's password.
-   * @returns {Promise<{ ok: boolean, email?: string, reason?: string }>} Auth result payload.
+   * @returns {Promise<AuthResult>} Auth result payload.
    */
   signInUser: async (email, password) => {
     const auth = getFirebaseAuth();
@@ -21,7 +29,11 @@ const createAuthRemoteDataSource = () => ({
 
     try {
       const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-      return { ok: true, email: credential.user?.email ?? normalizedEmail };
+      return {
+        ok: true,
+        uid: credential.user?.uid,
+        email: credential.user?.email ?? normalizedEmail,
+      };
     } catch (error) {
       const code = error?.code;
 
@@ -41,7 +53,7 @@ const createAuthRemoteDataSource = () => ({
    * Registers a new user account.
    * @param {string} email - The user's email address.
    * @param {string} password - The user's password.
-   * @returns {Promise<{ ok: boolean, email?: string, reason?: string }>} Registration result payload.
+   * @returns {Promise<AuthResult>} Registration result payload.
    */
   registerUser: async (email, password) => {
     const auth = getFirebaseAuth();
@@ -49,7 +61,11 @@ const createAuthRemoteDataSource = () => ({
 
     try {
       const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
-      return { ok: true, email: credential.user?.email ?? normalizedEmail };
+      return {
+        ok: true,
+        uid: credential.user?.uid,
+        email: credential.user?.email ?? normalizedEmail,
+      };
     } catch (error) {
       if (error?.code === 'auth/email-already-in-use') {
         return { ok: false, reason: 'email-already-in-use' };
@@ -67,12 +83,18 @@ const createAuthRemoteDataSource = () => ({
     await signOut(auth);
   },
   /**
-   * Gets the current authenticated user's email.
-   * @returns {string} Email when signed in, otherwise an empty string.
+   * Gets the current authenticated user.
+   * @returns {{ uid: string, email: string } | null} The user when signed in, otherwise null.
    */
-  getCurrentUserEmail: () => {
+  getCurrentUser: () => {
     const auth = getFirebaseAuth();
-    return auth.currentUser?.email ?? '';
+    const user = auth.currentUser;
+
+    if (!user?.uid) {
+      return null;
+    }
+
+    return { uid: user.uid, email: user.email ?? '' };
   },
 });
 

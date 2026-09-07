@@ -3,15 +3,33 @@ import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import useNotesStore from '../store/useNotesStore';
+import useAuthStore from '../../auth/store/useAuthStore';
+import useUiStore from '../../../shared/store/useUiStore';
+import { confirmAction } from '../../../shared/feedback/confirmDialog';
 
 /**
  * Compact note preview card.
  * @param {{ id: string, title: string, desc: string }} props - Note data for the card.
  */
 const NoteCard = ({ id, title, desc }) => {
-  const appTheme = useNotesStore((state) => state.appTheme);
-  const confirmDelete = useNotesStore((state) => state.confirmDelete);
+  const appTheme = useUiStore((state) => state.appTheme);
+  const usrId = useAuthStore((state) => state.usrId);
+  const removeNote = useNotesStore((state) => state.removeNote);
   const navigation = useNavigation();
+
+  /** Asks the user to confirm, then deletes the note. */
+  const handleDelete = async () => {
+    const confirmed = await confirmAction({
+      title: 'Delete Confirmation',
+      message: 'Are you sure you want to delete this item?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+
+    if (confirmed) {
+      await removeNote(usrId, id);
+    }
+  };
 
   return (
     <View style={styles.noteContainer}>
@@ -20,7 +38,7 @@ const NoteCard = ({ id, title, desc }) => {
           {title}
         </Text>
 
-        <Pressable onPress={() => confirmDelete(id)} style={styles.btnClose}>
+        <Pressable onPress={handleDelete} style={styles.btnClose}>
           <AntDesign name="close" size={24} color="black" />
         </Pressable>
       </View>

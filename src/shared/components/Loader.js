@@ -1,14 +1,14 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
-import useNotesStore from '../../features/notes/store/useNotesStore';
+import useUiStore from '../store/useUiStore';
 
 /**
  * Shared loading state used across screens.
  * @param {{ msg?: string, fallbackMsg?: string }} props - Optional message and fallback text shown below the spinner.
  */
 const Loader = ({ msg, fallbackMsg = 'Loading...' }) => {
-  const appTheme = useNotesStore((state) => state.appTheme);
+  const appTheme = useUiStore((state) => state.appTheme);
   const normalized = typeof msg === 'string' ? msg.trim() : '';
   const displayMsg = normalized.length > 0 ? normalized : fallbackMsg;
 

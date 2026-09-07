@@ -3,6 +3,8 @@ import { StyleSheet, View, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Loader from '../../../shared/components/Loader';
 import useNotesStore from '../../notes/store/useNotesStore';
+import useAuthStore from '../../auth/store/useAuthStore';
+import useUiStore from '../../../shared/store/useUiStore';
 
 /**
  * Note editor screen.
@@ -10,7 +12,8 @@ import useNotesStore from '../../notes/store/useNotesStore';
  */
 const Note = ({ route }) => {
   const { id, title, desc } = route.params;
-  const isLoading = useNotesStore((state) => state.isLoading);
+  const isLoading = useUiStore((state) => state.isLoading);
+  const usrId = useAuthStore((state) => state.usrId);
   const editNote = useNotesStore((state) => state.editNote);
   const navigation = useNavigation();
   const [textContext, setTextContext] = useState('');
@@ -30,8 +33,8 @@ const Note = ({ route }) => {
       return;
     }
 
-    editNote(id, title, textContext);
-  }, [id, title, textContext, editNote]);
+    editNote(usrId, id, title, textContext);
+  }, [usrId, id, title, textContext, editNote]);
 
   return (
     <View style={styles.container}>

@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Button, TextInput } from 'react-native-paper';
 import Loader from '../../../shared/components/Loader';
 import PasswordInput from '../../../shared/components/PasswordInput';
-import useNotesStore from '../../notes/store/useNotesStore';
+import useAuthStore from '../store/useAuthStore';
+import useUiStore from '../../../shared/store/useUiStore';
 import logger from '../../../shared/utils/logger';
 
 /**
@@ -12,11 +13,11 @@ import logger from '../../../shared/utils/logger';
  */
 const Register = () => {
   const navigation = useNavigation();
-  const appTheme = useNotesStore((state) => state.appTheme);
-  const showFeedback = useNotesStore((state) => state.showFeedback);
-  const isLoading = useNotesStore((state) => state.isLoading);
-  const register = useNotesStore((state) => state.register);
-  const hasInternet = useNotesStore((state) => state.hasInternet);
+  const appTheme = useUiStore((state) => state.appTheme);
+  const showFeedback = useUiStore((state) => state.showFeedback);
+  const isLoading = useUiStore((state) => state.isLoading);
+  const register = useAuthStore((state) => state.register);
+  const hasInternet = useUiStore((state) => state.hasInternet);
 
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');

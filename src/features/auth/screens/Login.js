@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Button, TextInput } from 'react-native-paper';
 import Loader from '../../../shared/components/Loader';
 import PasswordInput from '../../../shared/components/PasswordInput';
-import useNotesStore from '../../notes/store/useNotesStore';
+import useAuthStore from '../store/useAuthStore';
+import useUiStore from '../../../shared/store/useUiStore';
 import logger from '../../../shared/utils/logger';
 
 /**
@@ -12,12 +13,12 @@ import logger from '../../../shared/utils/logger';
  */
 const Login = () => {
   const navigation = useNavigation();
-  const appTheme = useNotesStore((state) => state.appTheme);
-  const showFeedback = useNotesStore((state) => state.showFeedback);
-  const isLoading = useNotesStore((state) => state.isLoading);
-  const setIsLoading = useNotesStore((state) => state.setIsLoading);
-  const login = useNotesStore((state) => state.login);
-  const hasInternet = useNotesStore((state) => state.hasInternet);
+  const appTheme = useUiStore((state) => state.appTheme);
+  const showFeedback = useUiStore((state) => state.showFeedback);
+  const isLoading = useUiStore((state) => state.isLoading);
+  const setIsLoading = useUiStore((state) => state.setIsLoading);
+  const login = useAuthStore((state) => state.login);
+  const hasInternet = useUiStore((state) => state.hasInternet);
 
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');

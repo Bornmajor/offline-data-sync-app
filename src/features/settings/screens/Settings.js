@@ -2,15 +2,16 @@ import React from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { Button } from 'react-native-paper';
 import { FontAwesome6 } from '@expo/vector-icons';
-import useNotesStore from '../../notes/store/useNotesStore';
+import useAuthStore from '../../auth/store/useAuthStore';
+import useUiStore from '../../../shared/store/useUiStore';
 
 /**
  * Settings screen for the current user.
  */
 const Settings = () => {
-  const appTheme = useNotesStore((state) => state.appTheme);
-  const logout = useNotesStore((state) => state.logout);
-  const usrMail = useNotesStore((state) => state.usrMail);
+  const appTheme = useUiStore((state) => state.appTheme);
+  const logout = useAuthStore((state) => state.logout);
+  const usrMail = useAuthStore((state) => state.usrMail);
 
   return (
     <View style={styles.container}>

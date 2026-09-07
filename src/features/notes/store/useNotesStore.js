@@ -1,227 +1,130 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
-import { Alert } from 'react-native';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import createAuthRemoteDataSource from '../../auth/data/datasources/authRemoteDataSource';
-import createAuthRepository from '../../auth/data/repositories/authRepository';
-import createGetCurrentUserEmailUseCase from '../../auth/domain/usecases/getCurrentUserEmailUseCase';
-import createRegisterUserUseCase from '../../auth/domain/usecases/registerUserUseCase';
-import createSignInUserUseCase from '../../auth/domain/usecases/signInUserUseCase';
-import createSignOutUserUseCase from '../../auth/domain/usecases/signOutUserUseCase';
-import createNotesRemoteDataSource from '../data/datasources/notesRemoteDataSource';
-import createNotesRepository from '../data/repositories/notesRepository';
-import createAddNoteUseCase from '../domain/usecases/addNoteUseCase';
-import createDeleteNoteUseCase from '../domain/usecases/deleteNoteUseCase';
-import createObserveNotesByEmailUseCase from '../domain/usecases/observeNotesByEmailUseCase';
-import createUpdateNoteUseCase from '../domain/usecases/updateNoteUseCase';
-import { showAppFeedback } from '../../../shared/feedback/feedbackAdapter';
+import useUiStore from '../../../shared/store/useUiStore';
 import logger from '../../../shared/utils/logger';
+import { addNote, deleteNote, observeNotesByOwner, updateNote } from '../container';
 
-const STORAGE_KEY = 'notes-storage';
-const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+/**
+ * @typedef {{ id: string, title: string, description: string }} Note
+ */
 
-const authRemoteDataSource = createAuthRemoteDataSource();
-const authRepository = createAuthRepository(authRemoteDataSource);
-const signInUser = createSignInUserUseCase(authRepository);
-const registerUser = createRegisterUserUseCase(authRepository);
-const signOutUser = createSignOutUserUseCase(authRepository);
-const getCurrentUserEmail = createGetCurrentUserEmailUseCase(authRepository);
+/**
+ * Converts a Realtime Database snapshot object into the array shape the UI renders.
+ * @param {Record<string, Omit<Note, 'id'>> | null | undefined} snapshot
+ * @returns {Note[]}
+ */
+export const toNotesList = (snapshot) => {
+  if (!snapshot) {
+    return [];
+  }
 
-const notesRemoteDataSource = createNotesRemoteDataSource();
-const notesRepository = createNotesRepository(notesRemoteDataSource);
-const observeNotesByEmail = createObserveNotesByEmailUseCase(notesRepository);
-const addNote = createAddNoteUseCase(notesRepository);
-const updateNote = createUpdateNoteUseCase(notesRepository);
-const deleteNote = createDeleteNoteUseCase(notesRepository);
-
-const defaultState = {
-  appTheme: '#F7B518',
-  textTheme: 'black',
-  isLoading: true,
-  isLogin: false,
-  usrMail: '',
-  hasInternet: null,
-  notes: [],
+  return Object.keys(snapshot).map((key) => ({ id: key, ...snapshot[key] }));
 };
 
 /**
- * Global app store for auth, notes, and UI state.
+ * Notes domain state. Holds the current note list and the actions screens call;
+ * connectivity and feedback come from the UI store, identity from the auth store.
  */
-const useNotesStore = create(
-  persist(
-    (set, get) => ({
-      ...defaultState,
-      setAppTheme: (appTheme) => set({ appTheme }),
-      setTextTheme: (textTheme) => set({ textTheme }),
-      setIsLoading: (isLoading) => set({ isLoading }),
-      setIsLogin: (isLogin) => set({ isLogin }),
-      setUsrMail: (usrMail) => set({ usrMail }),
-      setHasInternet: (hasInternet) => set({ hasInternet }),
-      setNotes: (notes) => set({ notes }),
-      resetSession: () => set({ isLogin: false, usrMail: '', notes: [] }),
-      showFeedback: (msg) => showAppFeedback(msg),
-      syncAuthSession: () => {
-        const currentEmail = getCurrentUserEmail();
+const useNotesStore = create((set) => ({
+  /** @type {Note[]} */
+  notes: [],
+  /** Clears the in-memory note list (used on sign-out). */
+  clearNotes: () => set({ notes: [] }),
+  /**
+   * Subscribes to the signed-in user's notes and mirrors them into the store.
+   * @param {string} ownerId - The owner id (Firebase `auth.uid`).
+   * @returns {() => void} Unsubscribe function.
+   */
+  watchNotes: (ownerId) => {
+    const ui = useUiStore.getState();
+    ui.setIsLoading(true);
 
-        if (currentEmail) {
-          set({ isLogin: true, usrMail: currentEmail });
-          return currentEmail;
-        }
+    if (!ownerId) {
+      set({ notes: [] });
+      ui.setIsLoading(false);
+      return () => {};
+    }
 
-        set({ isLogin: false, usrMail: '' });
-        return '';
-      },
-      /**
-       * Signs in an existing user.
-       * @param {string} email - User email.
-       * @param {string} password - User password.
-       * @returns {Promise<boolean>} True when login succeeded.
-       */
-      login: async (email, password) => {
-        set({ isLoading: true });
-        try {
-          const result = await signInUser(email, password);
+    return observeNotesByOwner(ownerId, (snapshot) => {
+      set({ notes: toNotesList(snapshot) });
+      ui.setIsLoading(false);
+    });
+  },
+  /**
+   * Creates a note for the given owner.
+   * @param {string} title
+   * @param {string} description
+   * @param {string} ownerId
+   * @returns {Promise<boolean>} True when the note was persisted.
+   */
+  createNote: async (title, description, ownerId) => {
+    const ui = useUiStore.getState();
+    const trimmedTitle = (title ?? '').trim();
 
-          if (result.ok) {
-            set({ isLogin: true, usrMail: result.email ?? email, isLoading: false });
-            return true;
-          }
+    if (!trimmedTitle) {
+      ui.showFeedback('Note title is required.');
+      return false;
+    }
 
-          set({ isLoading: false });
-          get().showFeedback('Incorrect email or password.');
-          return false;
-        } catch (error) {
-          logger.error('Login failed', error);
-          get().showFeedback('Login failed. Check network or Firebase rules.');
-          set({ isLoading: false });
-          return false;
-        }
-      },
-      /**
-       * Registers a new user.
-       * @param {string} email - User email.
-       * @param {string} password - User password.
-       * @returns {Promise<boolean>} True when registration succeeded.
-       */
-      register: async (email, password) => {
-        if (!PASSWORD_REGEX.test(password)) {
-          get().showFeedback(
-            'Password must be at least 8 characters and include a letter, number, and special character',
-          );
-          return false;
-        }
+    if (!ownerId) {
+      ui.showFeedback('You must be signed in to add a note.');
+      return false;
+    }
 
-        set({ isLoading: true });
-        try {
-          const result = await registerUser(email, password);
+    try {
+      await addNote({ ownerId, title: trimmedTitle, description: description ?? '' });
+      return true;
+    } catch (error) {
+      logger.error('Create note failed', error);
+      ui.showFeedback('Could not save the note. Check your connection.');
+      return false;
+    }
+  },
+  /**
+   * Updates an existing note.
+   * @param {string} ownerId
+   * @param {string} id
+   * @param {string} title
+   * @param {string} description
+   * @returns {Promise<boolean>} True when the update was persisted.
+   */
+  editNote: async (ownerId, id, title, description) => {
+    const ui = useUiStore.getState();
 
-          if (result.ok) {
-            set({ isLogin: true, usrMail: result.email ?? email, isLoading: false });
-            get().showFeedback('Account created successfully.');
-            return true;
-          }
+    if (!ownerId) {
+      return false;
+    }
 
-          set({ isLoading: false });
-          if (result.reason === 'email-already-in-use') {
-            get().showFeedback('Email already in use. Try login instead.');
-          } else {
-            get().showFeedback('Registration failed.');
-          }
-          return false;
-        } catch (error) {
-          logger.error('Registration failed', error);
-          get().showFeedback('Registration failed. Check network or Firebase rules.');
-          set({ isLoading: false });
-          return false;
-        }
-      },
-      logout: async () => {
-        try {
-          await signOutUser();
-        } catch (error) {
-          logger.error('Logout failed', error);
-        } finally {
-          set({ isLogin: false, usrMail: '', notes: [], isLoading: false });
-        }
-      },
-      watchNotes: (email) => {
-        set({ isLoading: true });
-        return observeNotesByEmail(email, (notesSnapshot) => {
-          if (!notesSnapshot) {
-            set({ notes: [], isLoading: false });
-            return;
-          }
+    try {
+      await updateNote({ ownerId, id, title: (title ?? '').trim(), description: description ?? '' });
+      return true;
+    } catch (error) {
+      logger.error('Edit note failed', error);
+      ui.showFeedback('Could not update the note. Check your connection.');
+      return false;
+    }
+  },
+  /**
+   * Deletes a note by id.
+   * @param {string} ownerId
+   * @param {string} id
+   * @returns {Promise<boolean>} True when the delete was persisted.
+   */
+  removeNote: async (ownerId, id) => {
+    const ui = useUiStore.getState();
 
-          const notesList = Object.keys(notesSnapshot).map((key) => ({
-            id: key,
-            ...notesSnapshot[key],
-          }));
-          set({ notes: notesList, isLoading: false });
-        });
-      },
-      createNote: async (title, description) => {
-        const email = get().usrMail;
-        await addNote({ title, description, email });
-      },
-      editNote: async (id, title, description) => {
-        await updateNote({ id, title, description });
-      },
-      removeNote: async (id) => {
-        await deleteNote(id);
-      },
-      confirmDelete: (id) =>
-        new Promise((resolve) => {
-          Alert.alert(
-            'Delete Confirmation',
-            'Are you sure you want to delete this item?',
-            [
-              {
-                text: 'Cancel',
-                onPress: () => resolve(false),
-                style: 'cancel',
-              },
-              {
-                text: 'Delete',
-                onPress: async () => {
-                  await get().removeNote(id);
-                  resolve(true);
-                },
-                style: 'destructive',
-              },
-            ],
-            { cancelable: true },
-          );
-        }),
-      startNetworkListener: () => {
-        const updateInternetStatus = (state) => {
-          const connected = state.isConnected === true;
-          const reachable = state.isInternetReachable !== false;
+    if (!ownerId) {
+      return false;
+    }
 
-          set({
-            hasInternet: connected && reachable,
-          });
-        };
-
-        const unsubscribe = NetInfo.addEventListener(updateInternetStatus);
-        NetInfo.fetch().then(updateInternetStatus);
-        return unsubscribe;
-      },
-    }),
-    {
-      name: STORAGE_KEY,
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        appTheme: state.appTheme,
-        textTheme: state.textTheme,
-        isLogin: state.isLogin,
-        usrMail: state.usrMail,
-      }),
-      onRehydrateStorage: () => (state) => {
-        state?.setIsLoading(false);
-      },
-    },
-  ),
-);
+    try {
+      await deleteNote({ ownerId, id });
+      return true;
+    } catch (error) {
+      logger.error('Remove note failed', error);
+      ui.showFeedback('Could not delete the note. Check your connection.');
+      return false;
+    }
+  },
+}));
 
 export default useNotesStore;
