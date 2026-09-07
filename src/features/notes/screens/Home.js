@@ -6,6 +6,8 @@ import { Button, Modal, Portal, TextInput } from 'react-native-paper';
 import NoteCard from '../components/NoteCard';
 import Loader from '../../../shared/components/Loader';
 import useNotesStore from '../store/useNotesStore';
+import useAuthStore from '../../auth/store/useAuthStore';
+import useUiStore from '../../../shared/store/useUiStore';
 
 /**
  * Settings icon used in the home screen header.
@@ -31,10 +33,10 @@ const renderSettingsHeaderRight = (navigation) => (
  */
 const Home = () => {
   const navigation = useNavigation();
-  const appTheme = useNotesStore((state) => state.appTheme);
-  const hasInternet = useNotesStore((state) => state.hasInternet);
-  const usrMail = useNotesStore((state) => state.usrMail);
-  const isLoading = useNotesStore((state) => state.isLoading);
+  const appTheme = useUiStore((state) => state.appTheme);
+  const hasInternet = useUiStore((state) => state.hasInternet);
+  const usrId = useAuthStore((state) => state.usrId);
+  const isLoading = useUiStore((state) => state.isLoading);
   const notes = useNotesStore((state) => state.notes);
   const watchNotes = useNotesStore((state) => state.watchNotes);
   const createNote = useNotesStore((state) => state.createNote);
@@ -50,13 +52,13 @@ const Home = () => {
 
   useFocusEffect(
     useCallback(() => {
-      const unsubscribe = watchNotes(usrMail);
+      const unsubscribe = watchNotes(usrId);
       return () => {
         if (typeof unsubscribe === 'function') {
           unsubscribe();
         }
       };
-    }, [usrMail, watchNotes]),
+    }, [usrId, watchNotes]),
   );
 
   /** Opens the create-note modal. */
@@ -106,9 +108,11 @@ const Home = () => {
                 labelStyle={{ fontSize: 18 }}
                 style={{ marginVertical: 30, borderRadius: 8 }}
                 onPress={async () => {
-                  await createNote(noteTitle, '...');
-                  setNoteTitle('');
-                  hideModal();
+                  const created = await createNote(noteTitle, '', usrId);
+                  if (created) {
+                    setNoteTitle('');
+                    hideModal();
+                  }
                 }}
               >
                 ADD

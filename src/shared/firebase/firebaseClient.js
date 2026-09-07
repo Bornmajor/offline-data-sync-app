@@ -3,6 +3,14 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import googleServices from '../../../google-services.json';
 
+/**
+ * Firebase config is read from `google-services.json` (the standard Android
+ * config file). These values — `apiKey`, `appId`, `projectId`, `databaseURL`,
+ * etc. — are public client identifiers, not secrets: they ship inside every
+ * distributed APK and are safe to commit. Access control is enforced by
+ * Firebase Auth plus the Realtime Database rules in `database.rules.json`
+ * (see the "Security model" section of the README), never by hiding this file.
+ */
 const client = googleServices.client?.[0] ?? {};
 const projectInfo = googleServices.project_info ?? {};
 const apiKey = client.api_key?.[0]?.current_key;

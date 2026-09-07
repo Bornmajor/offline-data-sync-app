@@ -1,9 +1,6 @@
 jest.mock('firebase/database', () => ({
-  equalTo: jest.fn((value) => ({ type: 'equalTo', value })),
   onValue: jest.fn(),
-  orderByChild: jest.fn((value) => ({ type: 'orderByChild', value })),
   push: jest.fn(),
-  query: jest.fn((...args) => ({ args })),
   ref: jest.fn((db, path) => ({ db, path })),
   remove: jest.fn(),
   set: jest.fn(),
@@ -14,17 +11,7 @@ jest.mock('../../../../../shared/firebase/firebaseClient', () => ({
   getFirebaseDatabase: jest.fn(),
 }));
 
-import {
-  equalTo,
-  onValue,
-  orderByChild,
-  push,
-  query,
-  ref,
-  remove,
-  set,
-  update,
-} from 'firebase/database';
+import { onValue, push, ref, remove, set, update } from 'firebase/database';
 import { getFirebaseDatabase } from '../../../../../shared/firebase/firebaseClient';
 import createNotesRemoteDataSource from '../notesRemoteDataSource';
 
@@ -36,10 +23,10 @@ describe('notesRemoteDataSource', () => {
     getFirebaseDatabase.mockReturnValue(db);
   });
 
-  it('observeNotesByEmail wires query and forwards snapshot data', () => {
+  it('observeNotesByOwner subscribes to the owner subtree and forwards snapshot data', () => {
     const unsubscribe = jest.fn();
     const snapshot = { val: jest.fn(() => ({ a: { title: 't' } })) };
-    onValue.mockImplementation((_queryRef, callback) => {
+    onValue.mockImplementation((_ref, callback) => {
       callback(snapshot);
       return unsubscribe;
     });
@@ -47,51 +34,46 @@ describe('notesRemoteDataSource', () => {
     const onChange = jest.fn();
     const ds = createNotesRemoteDataSource();
 
-    const stop = ds.observeNotesByEmail('user@test.com', onChange);
+    const stop = ds.observeNotesByOwner('uid-1', onChange);
 
-    expect(ref).toHaveBeenCalledWith(db, '/notes');
-    expect(orderByChild).toHaveBeenCalledWith('email');
-    expect(equalTo).toHaveBeenCalledWith('user@test.com');
-    expect(query).toHaveBeenCalled();
-    expect(onValue).toHaveBeenCalled();
+    expect(ref).toHaveBeenCalledWith(db, 'notes/uid-1');
     expect(onChange).toHaveBeenCalledWith({ a: { title: 't' } });
     expect(stop).toBe(unsubscribe);
   });
 
-  it('addNote creates a pushed note and returns key', async () => {
+  it('addNote pushes into the owner subtree and returns the key', async () => {
     const newRef = { key: 'note-1' };
     push.mockReturnValue(newRef);
     set.mockResolvedValue(undefined);
     const ds = createNotesRemoteDataSource();
 
-    const key = await ds.addNote({ title: 't', description: 'd', email: 'user@test.com' });
+    const key = await ds.addNote({ ownerId: 'uid-1', title: 't', description: 'd' });
 
-    expect(push).toHaveBeenCalledWith({ db, path: '/notes' });
-    expect(set).toHaveBeenCalledWith(newRef, {
-      title: 't',
-      description: 'd',
-      email: 'user@test.com',
-    });
+    expect(push).toHaveBeenCalledWith({ db, path: 'notes/uid-1' });
+    expect(set).toHaveBeenCalledWith(newRef, { title: 't', description: 'd' });
     expect(key).toBe('note-1');
   });
 
-  it('updateNote updates mutable fields', async () => {
+  it('updateNote updates mutable fields under the owner subtree', async () => {
     update.mockResolvedValue(undefined);
     const ds = createNotesRemoteDataSource();
 
-    await ds.updateNote({ id: 'abc', title: 'new', description: 'desc' });
+    await ds.updateNote({ ownerId: 'uid-1', id: 'abc', title: 'new', description: 'desc' });
 
-    expect(ref).toHaveBeenCalledWith(db, '/notes/abc');
-    expect(update).toHaveBeenCalledWith({ db, path: '/notes/abc' }, { title: 'new', description: 'desc' });
+    expect(ref).toHaveBeenCalledWith(db, 'notes/uid-1/abc');
+    expect(update).toHaveBeenCalledWith(
+      { db, path: 'notes/uid-1/abc' },
+      { title: 'new', description: 'desc' },
+    );
   });
 
-  it('deleteNote removes by id', async () => {
+  it('deleteNote removes by owner + id', async () => {
     remove.mockResolvedValue(undefined);
     const ds = createNotesRemoteDataSource();
 
-    await ds.deleteNote('abc');
+    await ds.deleteNote({ ownerId: 'uid-1', id: 'abc' });
 
-    expect(ref).toHaveBeenCalledWith(db, '/notes/abc');
-    expect(remove).toHaveBeenCalledWith({ db, path: '/notes/abc' });
+    expect(ref).toHaveBeenCalledWith(db, 'notes/uid-1/abc');
+    expect(remove).toHaveBeenCalledWith({ db, path: 'notes/uid-1/abc' });
   });
 });

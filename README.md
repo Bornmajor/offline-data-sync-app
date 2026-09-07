@@ -8,85 +8,129 @@ A React Native / Expo Android app that demonstrates offline-first note syncing w
 - Notes CRUD: create, edit, delete, and browse notes.
 - Offline-aware sync through Firebase Realtime Database.
 - Network status tracking with `@react-native-community/netinfo`.
-- Local UI/session persistence with Zustand + AsyncStorage.
-- Theme and session state persisted across app restarts.
+- Session/theme persistence with Zustand + AsyncStorage across app restarts.
+- Per-user data isolation: notes live under `/notes/{uid}` and are enforced by
+  Realtime Database security rules (`database.rules.json`), not client filtering.
 - Native Firebase configuration for Android through `google-services.json`.
 - Release-safe logging with secret redaction in development.
 - Registration password policy enforced (min 8 chars with letter, number, and special character).
 
 ## Architecture
 
-The app follows a layered flow:
+The app follows a one-directional layered flow:
 
-`DataSource -> Repository -> UseCase -> Zustand -> UI`
+`DataSource -> Repository -> UseCase -> Store (Zustand) -> UI`
 
-That means:
+- **DataSource** – the only place Firebase is touched (`data/datasources/`).
+- **Repository** – a thin boundary that wraps a datasource (`data/repositories/`).
+- **UseCase** – one domain action each (`domain/usecases/`).
+- **Composition root** – `features/<feature>/container.js` wires
+  datasource → repository → use case once, so stores depend only on ready-to-call
+  use cases and never on how they are assembled.
+- **Store** – Zustand state, split by concern (see below). Stores orchestrate
+  use cases and hold no view logic.
+- **UI** – screens/components read from stores and call store actions only.
 
-- Firebase access lives in datasource files.
-- Repositories wrap datasource calls.
-- Use cases expose domain actions.
-- Zustand stores app state and orchestrates use cases.
-- Screens and components only talk to the store.
+### State is split by concern
+
+| Store | Owns | Persisted |
+| --- | --- | --- |
+| `shared/store/useUiStore` | theme, global `isLoading`, connectivity, snackbar feedback | theme only |
+| `features/auth/store/useAuthStore` | `isLogin`, `usrMail`, `usrId`, login/register/logout/session | session only |
+| `features/notes/store/useNotesStore` | current note list + note CRUD actions | not persisted (source of truth is Firebase) |
+
+Native confirmation dialogs live in `shared/feedback/confirmDialog.js` so state
+modules stay free of UI concerns.
 
 ## Tech Stack
 
-- Expo / React Native
-- React Navigation
-- Firebase Realtime Database
-- Firebase JS SDK (`firebase` package)
-- Zustand
-- AsyncStorage
-- NetInfo
+- Expo / React Native (Android)
+- React Navigation (native stack)
+- Firebase Realtime Database via the Firebase JS SDK (`firebase` package)
+- Zustand (+ `persist` middleware over AsyncStorage)
+- `@react-native-community/netinfo`
 - React Native Paper
-- Jest + React Test Renderer
+- Jest (`jest-expo`) + React Test Renderer
+- Runtime code is `.js` annotated with JSDoc; `tsconfig.json` is included so
+  editors surface those types. There is no build-time TS compilation step.
 
 ## Project Structure
 
 ```text
 src/
-  App.js
+  App.js                     # bootstrap: starts network listener + session sync
   features/
     auth/
-      data/
-        datasources/
-        repositories/
-      domain/
-        usecases/
-      screens/
+      container.js           # composition root for auth
+      data/{datasources,repositories}/
+      domain/usecases/
+      screens/               # Login, Register
+      store/useAuthStore.js
     notes/
-      components/
-      data/
-        datasources/
-        repositories/
-      domain/
-        usecases/
-      screens/
-      store/
+      container.js           # composition root for notes
+      components/             # NoteCard
+      data/{datasources,repositories}/
+      domain/usecases/
+      screens/               # Home, Note
+      store/useNotesStore.js
     settings/
-      screens/
-  navigation/
+      screens/               # Settings
+  navigation/                # MainNavigation (guest vs. app stacks)
   shared/
-    components/
-    utils/
-  test/
+    components/               # Loader, PasswordInput
+    feedback/                 # feedbackAdapter, GlobalSnackbar, confirmDialog
+    firebase/                 # firebaseClient
+    store/useUiStore.js
+    utils/                    # logger (redacts secrets, silent in release)
 ```
 
 ## Firebase Setup
 
-This project currently initializes Firebase through the JavaScript SDK in [src/shared/firebase/firebaseClient.js](src/shared/firebase/firebaseClient.js).
+Firebase is initialized through the JavaScript SDK in
+[src/shared/firebase/firebaseClient.js](src/shared/firebase/firebaseClient.js).
 
-- [app.json](app.json) points Android to [google-services.json](google-services.json) for native Android build metadata.
-- The app also parses [google-services.json](google-services.json) in JS to populate `initializeApp(...)` config values (`apiKey`, `appId`, `projectId`, `databaseURL`, and related fields).
-- This keeps one Firebase source of truth for Android and avoids duplicating those values in code.
+- [app.json](app.json) points Android to [google-services.json](google-services.json) for the native build.
+- `firebaseClient.js` also reads [google-services.json](google-services.json) at runtime to build the
+  `initializeApp(...)` config (`apiKey`, `appId`, `projectId`, `databaseURL`, …), so there is a single
+  Firebase source of truth for the Android target.
 
-If you want separate environments, keep per-environment Firebase config files and switch them via Expo config/EAS build profiles.
+## Security model
 
-### Platform caveats
+**`google-services.json` is committed on purpose.** The values it contains
+(`apiKey`, `appId`, `projectId`, `databaseURL`) are *public client identifiers*,
+not secrets — they ship inside every distributed APK and cannot be hidden from a
+determined user. Firebase is designed around this; access control is enforced
+server-side, not by keeping the config private.
 
-- Android: the current flow works as-is because [google-services.json](google-services.json) is available and mapped in [app.json](app.json).
-- iOS: this repo does not include a `GoogleService-Info.plist` path/config; add iOS Firebase config and update Expo settings before shipping iOS.
-- Web: [google-services.json](google-services.json) is Android-specific. For web builds, provide Firebase JS config through environment variables or a web-specific config module.
-- Dependency note: `@react-native-firebase/*` packages are installed, but app runtime in this repository uses the Firebase JS SDK path in [src/shared/firebase/firebaseClient.js](src/shared/firebase/firebaseClient.js).
+What actually protects data:
+
+1. **Firebase Authentication** – every request is made as a signed-in user; there
+   is no anonymous access.
+2. **Realtime Database security rules** – [database.rules.json](database.rules.json). Notes are stored
+   under an owner-scoped path `/notes/{uid}/{noteId}`, and the rules grant read
+   and write on `/notes/{uid}` **only** when `auth.uid === {uid}`. A user cannot
+   read, query, or write another user's notes even with a hand-crafted request;
+   the client-side code never has to be trusted for isolation. Field-level
+   `.validate` rules also constrain note shape and size.
+
+Deploy the rules with the Firebase CLI (config in [firebase.json](firebase.json)):
+
+```bash
+firebase deploy --only database
+```
+
+Other practices in the codebase:
+
+- `console.*` is disabled entirely in release builds ([src/App.js](src/App.js)).
+- [src/shared/utils/logger.js](src/shared/utils/logger.js) redacts `password` / `token` / `apiKey` / etc.
+  (including nested and array values) before anything reaches the console in development.
+- Registration enforces a password policy (min 8 chars, letter + number + special).
+- Real secrets (e.g. `EXPO_TOKEN` for CI) live in GitHub Actions secrets, never in the repo.
+
+### Platform note
+
+This repo targets **Android**. iOS (`GoogleService-Info.plist`) and web (env-based
+Firebase config) are not set up.
 
 ## Getting Started
 
@@ -96,22 +140,13 @@ If you want separate environments, keep per-environment Firebase config files an
 npm install
 ```
 
-If you are setting up Firebase manually for this code path, make sure the JS SDK is installed:
-
-```bash
-npm install firebase
-```
-
-Optional: if you later migrate runtime calls to native Firebase modules, then install `@react-native-firebase/app` and `@react-native-firebase/database` as part of that migration.
-
-
 ### 2. Configure Firebase
 
-- Create a Firebase project.
-- Enable Realtime Database.
-- Download the Android `google-services.json` file.
-- Place it at the project root.
-- Keep [app.json](app.json) configured with `android.googleServicesFile`.
+- Create a Firebase project and enable Realtime Database.
+- Download the Android `google-services.json` and place it at the project root
+  (kept wired through `android.googleServicesFile` in [app.json](app.json)).
+- Enable Email/Password sign-in under Authentication.
+- Deploy the security rules: `firebase deploy --only database`.
 
 ### 3. Start the app
 
@@ -119,72 +154,39 @@ Optional: if you later migrate runtime calls to native Firebase modules, then in
 npx expo start -c
 ```
 
-Because runtime data/auth calls use the Firebase JS SDK, you can run the app in Expo Go for Android flows. If you later switch runtime calls to `@react-native-firebase/*`, use a development build.
+Data/auth calls use the Firebase JS SDK, so Android flows run in Expo Go.
 
 ### 4. Build Android
 
-The existing EAS profiles in [eas.json](eas.json) include:
-
-- `preview3` for a development client build
-- `preview` / `preview4` for internal builds
-- `production` for release builds
-
-Example:
+EAS build profiles live in [eas.json](eas.json) (`preview` builds an APK, `production` a release build):
 
 ```bash
-eas build --profile preview3 --platform android
+eas build --profile preview --platform android
 ```
 
 
 ## Testing
 
-### Run tests
-
-Project script (watch mode):
-
 ```bash
-npm test
+npm test          # watch mode
+npm run test:ci   # single run + coverage (fails under the configured threshold)
 ```
 
-One-time run (recommended for CI/local verification):
+`test:ci` enforces a global coverage floor (see `jest.coverageThreshold` in
+[package.json](package.json)); framework glue (navigation, the Firebase client,
+composition roots) is excluded from the measurement.
 
-```bash
-npx jest --watchAll=false
-```
+### What is covered
 
-### Targeted test suites
-
-The project includes unit tests for key layers:
-
-- Repository layer
-  - `src/features/auth/data/repositories/__tests__/authRepository.test.js`
-  - `src/features/notes/data/repositories/__tests__/notesRepository.test.js`
-- Datasource layer
-  - `src/features/auth/data/datasources/__tests__/authRemoteDataSource.test.js`
-  - `src/features/notes/data/datasources/__tests__/notesRemoteDataSource.test.js`
-- Use case layer
-  - `src/features/auth/domain/usecases/__tests__/authUseCases.test.js`
-  - `src/features/notes/domain/usecases/__tests__/notesUseCases.test.js`
-- Zustand business logic
-  - `src/features/notes/store/__tests__/useNotesStore.test.js`
-- Shared widgets/components
-  - `src/shared/components/__tests__/Loader.test.js`
-  - `src/shared/components/__tests__/PasswordInput.test.js`
-
-Run only these suites:
-
-```bash
-npx jest --runInBand \
-  src/features/auth/data/datasources/__tests__/authRemoteDataSource.test.js \
-  src/features/notes/data/datasources/__tests__/notesRemoteDataSource.test.js \
-  src/features/auth/domain/usecases/__tests__/authUseCases.test.js \
-  src/features/notes/domain/usecases/__tests__/notesUseCases.test.js \
-  src/features/auth/data/repositories/__tests__/authRepository.test.js \
-  src/features/notes/data/repositories/__tests__/notesRepository.test.js \
-  src/features/notes/store/__tests__/useNotesStore.test.js \
-  src/shared/components/__tests__/Loader.test.js \
-  src/shared/components/__tests__/PasswordInput.test.js
-```
+| Area | Suites |
+| --- | --- |
+| Datasource ↔ Firebase wiring | `authRemoteDataSource`, `notesRemoteDataSource` |
+| Repository + use-case delegation | `authRepository`, `notesRepository`, `authUseCases`, `notesUseCases` |
+| Auth store | `useAuthStore` – login/register/logout, weak-password rejection, session sync, cross-store note clearing |
+| Notes store | `useNotesStore` – `toNotesList` snapshot→array transform, subscription lifecycle, blank-title guard, write-failure feedback |
+| **Offline / connectivity** | `useUiStore` – `startNetworkListener` online/offline transitions and the initial `NetInfo.fetch()` result |
+| Screens | `Login`, `Register` (validation + submit), `Settings` (logout), `NoteCard` (confirm→delete with owner id) |
+| Shared | `logger` secret redaction, `feedbackAdapter` pub/sub, `confirmDialog`, `Loader`, `PasswordInput` |
 
 
 ## CI/CD (GitHub Actions)
@@ -194,7 +196,7 @@ APK release automation is configured with the workflow at [.github/workflows/bui
 ### What the workflow does
 
 - Installs dependencies
-- Runs tests
+- Runs the test suite with coverage (`npm run test:ci`)
 - Builds Android APK with EAS
 - Downloads the APK artifact
 - Publishes the APK to GitHub Releases
@@ -229,16 +231,15 @@ After the workflow finishes, the APK is attached to the matching GitHub Release 
 
 ## Notes
 
-- Firebase console keys should not be hardcoded in UI files.
-- Console logging is disabled in release builds and redacted in development.
-- The main app entry is [src/App.js](src/App.js).
+- The app entry point is [src/App.js](src/App.js), which starts the connectivity
+  listener and rehydrates the Firebase session on mount.
+- See the **Security model** section above for how secrets and data isolation are handled.
 
 ## Learn More
 
 - [Expo docs](https://docs.expo.dev/)
-- [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/)
 - [Firebase Realtime Database](https://firebase.google.com/docs/database)
-- [React Native Firebase](https://rnfirebase.io/)
+- [Realtime Database security rules](https://firebase.google.com/docs/database/security)
 - [Zustand](https://zustand-demo.pmnd.rs/)
 - [React Native Paper](https://callstack.github.io/react-native-paper/)
 

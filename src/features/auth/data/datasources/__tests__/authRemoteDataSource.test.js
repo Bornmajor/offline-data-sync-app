@@ -21,19 +21,20 @@ describe('authRemoteDataSource', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    auth.currentUser = null;
     getFirebaseAuth.mockReturnValue(auth);
   });
 
-  it('signInUser normalizes email and returns success payload', async () => {
+  it('signInUser normalizes email and returns uid + email', async () => {
     signInWithEmailAndPassword.mockResolvedValue({
-      user: { email: 'normalized@test.com' },
+      user: { uid: 'uid-1', email: 'normalized@test.com' },
     });
     const ds = createAuthRemoteDataSource();
 
     const result = await ds.signInUser('  USER@Test.com  ', 'Password1!');
 
     expect(signInWithEmailAndPassword).toHaveBeenCalledWith(auth, 'user@test.com', 'Password1!');
-    expect(result).toEqual({ ok: true, email: 'normalized@test.com' });
+    expect(result).toEqual({ ok: true, uid: 'uid-1', email: 'normalized@test.com' });
   });
 
   it('signInUser maps invalid credentials errors', async () => {
@@ -43,6 +44,26 @@ describe('authRemoteDataSource', () => {
     const result = await ds.signInUser('user@test.com', 'bad');
 
     expect(result).toEqual({ ok: false, reason: 'invalid-credentials' });
+  });
+
+  it('signInUser rethrows unexpected errors', async () => {
+    signInWithEmailAndPassword.mockRejectedValue({ code: 'auth/network-request-failed' });
+    const ds = createAuthRemoteDataSource();
+
+    await expect(ds.signInUser('user@test.com', 'Password1!')).rejects.toEqual({
+      code: 'auth/network-request-failed',
+    });
+  });
+
+  it('registerUser returns uid + email on success', async () => {
+    createUserWithEmailAndPassword.mockResolvedValue({
+      user: { uid: 'uid-2', email: 'new@test.com' },
+    });
+    const ds = createAuthRemoteDataSource();
+
+    const result = await ds.registerUser('New@test.com', 'Password1!');
+
+    expect(result).toEqual({ ok: true, uid: 'uid-2', email: 'new@test.com' });
   });
 
   it('registerUser maps duplicate-email errors', async () => {
@@ -63,10 +84,17 @@ describe('authRemoteDataSource', () => {
     expect(signOut).toHaveBeenCalledWith(auth);
   });
 
-  it('getCurrentUserEmail returns current user email', () => {
-    auth.currentUser = { email: 'active@test.com' };
+  it('getCurrentUser returns uid + email when signed in', () => {
+    auth.currentUser = { uid: 'uid-3', email: 'active@test.com' };
     const ds = createAuthRemoteDataSource();
 
-    expect(ds.getCurrentUserEmail()).toBe('active@test.com');
+    expect(ds.getCurrentUser()).toEqual({ uid: 'uid-3', email: 'active@test.com' });
+  });
+
+  it('getCurrentUser returns null when signed out', () => {
+    auth.currentUser = null;
+    const ds = createAuthRemoteDataSource();
+
+    expect(ds.getCurrentUser()).toBeNull();
   });
 });

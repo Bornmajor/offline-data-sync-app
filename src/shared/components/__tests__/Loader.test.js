@@ -10,7 +10,7 @@ jest.mock('react-native-paper', () => {
   };
 });
 
-jest.mock('../../../features/notes/store/useNotesStore', () => ({
+jest.mock('../../store/useUiStore', () => ({
   __esModule: true,
   default: jest.fn(() => '#F7B518'),
 }));

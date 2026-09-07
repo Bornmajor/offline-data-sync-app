@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { registerRootComponent } from 'expo';
 import { StatusBar } from 'react-native';
 import MainNavigation from './navigation/MainNavigation';
-import useNotesStore from './features/notes/store/useNotesStore';
+import useAuthStore from './features/auth/store/useAuthStore';
+import useUiStore from './shared/store/useUiStore';
 
 if (!__DEV__) {
   console.log = () => {};
@@ -17,11 +18,10 @@ if (!__DEV__) {
  */
 export default function App() {
   useEffect(() => {
-    const store = useNotesStore.getState();
-    const unsubscribe = store.startNetworkListener();
-    store.syncAuthSession();
+    const stopNetworkListener = useUiStore.getState().startNetworkListener();
+    useAuthStore.getState().syncAuthSession();
 
-    return unsubscribe;
+    return stopNetworkListener;
   }, []);
 
   return (

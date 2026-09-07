@@ -1,4 +1,4 @@
-import createGetCurrentUserEmailUseCase from '../getCurrentUserEmailUseCase';
+import createGetCurrentUserUseCase from '../getCurrentUserUseCase';
 import createRegisterUserUseCase from '../registerUserUseCase';
 import createSignInUserUseCase from '../signInUserUseCase';
 import createSignOutUserUseCase from '../signOutUserUseCase';
@@ -6,7 +6,7 @@ import createSignOutUserUseCase from '../signOutUserUseCase';
 describe('auth use cases', () => {
   it('delegates sign-in and register to repository', async () => {
     const repository = {
-      signInUser: jest.fn().mockResolvedValue({ ok: true, email: 'user@test.com' }),
+      signInUser: jest.fn().mockResolvedValue({ ok: true, uid: 'uid-1', email: 'user@test.com' }),
       registerUser: jest.fn().mockResolvedValue({ ok: false, reason: 'email-already-in-use' }),
     };
 
@@ -18,24 +18,24 @@ describe('auth use cases', () => {
 
     expect(repository.signInUser).toHaveBeenCalledWith('user@test.com', 'Password1!');
     expect(repository.registerUser).toHaveBeenCalledWith('user@test.com', 'Password1!');
-    expect(signInResult).toEqual({ ok: true, email: 'user@test.com' });
+    expect(signInResult).toEqual({ ok: true, uid: 'uid-1', email: 'user@test.com' });
     expect(registerResult).toEqual({ ok: false, reason: 'email-already-in-use' });
   });
 
   it('delegates sign-out and current user lookup', async () => {
     const repository = {
       signOutUser: jest.fn().mockResolvedValue(undefined),
-      getCurrentUserEmail: jest.fn(() => 'user@test.com'),
+      getCurrentUser: jest.fn(() => ({ uid: 'uid-1', email: 'user@test.com' })),
     };
 
     const signOut = createSignOutUserUseCase(repository);
-    const getCurrentEmail = createGetCurrentUserEmailUseCase(repository);
+    const getCurrentUser = createGetCurrentUserUseCase(repository);
 
     await signOut();
-    const email = getCurrentEmail();
+    const user = getCurrentUser();
 
     expect(repository.signOutUser).toHaveBeenCalledTimes(1);
-    expect(repository.getCurrentUserEmail).toHaveBeenCalledTimes(1);
-    expect(email).toBe('user@test.com');
+    expect(repository.getCurrentUser).toHaveBeenCalledTimes(1);
+    expect(user).toEqual({ uid: 'uid-1', email: 'user@test.com' });
   });
 });
